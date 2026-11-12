@@ -42,3 +42,38 @@ The engine was chosen to match the Windows and macOS labs' compose+web-viewer UX
 
 Rationale and the alternatives considered (privileged containers, libvirt,
 Firecracker, gVisor) are recorded in [[linux-lab/knowledge/draft.md]].
+
+## OS-30 Ubuntu baseline checker and explicit repairs
+
+[[linux-lab/scripts/harden_check.py]] is the standard-library Python entry point
+requested by the roadmap. It provides a read-only audit and selected,
+consent-gated repairs.
+
+Its default audit delegates to [[linux-lab/scripts/hardening.sh]] for local SSH,
+user/sudo, cached-update and UFW checks; text or versioned JSON reports preserve
+WARN and FAIL evidence. A missing/empty collector or execution returning no
+findings is refused rather than treated as a clean audit.
+This runs inside an authorized Ubuntu guest (including ARM64 UTM), independently
+of the Docker VM host and its SSH forwarding port.
+
+Repair planning is read-only. Explicitly selected permission/timer/management-rule
+repairs require root and exact interactive consent immediately before application.
+Snapshots, metadata checks, no-follow file descriptors and a repair lock protect
+against drift and overlapping application. SSH authentication and ports are not
+changed; no package upgrades, UFW reset or automatic UFW activation occur. Failed
+permission/timer changes are rolled back; an unverified UFW addition is reported
+as partial state with saved rules, never hidden behind a claimed rollback.
+
+The allowlist and limitations are explained in [[linux-lab/knowledge/hardening.md]].
+[[linux-lab/tests/test_hardening.py]] and [[linux-lab/tests/test_harden_check.py]]
+use command fakes and temporary files, not real host security changes. Actual
+verification and sanitized operator-reported lab summaries are separated in [[VERIFY.md]];
+[[REPORT.md]] records scope and remaining acceptance evidence.
+
+Completed schema-2 repair manifests record verified post-state for explicit
+`rollback ID`. The same lock and exact consent protect rollback; snapshot and
+post-state drift refuse permission/timer restoration. Only a uniquely tagged,
+proven run-owned UFW addition may be removed, with ambiguous firewall state
+reported as partial recovery. Legacy/incomplete evidence is not trusted.
+Rollback tests are in [[linux-lab/tests/test_rollback.py]] and use only temporary
+files/fake commands; no live Ubuntu rollback is claimed.

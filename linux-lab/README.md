@@ -169,3 +169,62 @@ For a local ISO, bind `./boot.iso:/boot.iso` in compose. See
 
 See [`knowledge/`](knowledge/) for research, setup, operations, networking and
 use cases.
+
+## Ubuntu baseline hardening (OS-30)
+
+Inside the authorized Ubuntu guest (including UTM ARM64), run from the repository root:
+
+```bash
+python3 linux-lab/scripts/harden_check.py audit
+python3 linux-lab/scripts/harden_check.py audit --format json
+python3 linux-lab/scripts/harden_check.py plan --fix ssh-permissions
+```
+
+The default audit is read-only and reports SSH, users/sudo, cached updates and UFW.
+It requires the companion `linux-lab/scripts/hardening.sh`; missing or empty
+collector code is an execution error, never a clean audit.
+An administrator can preview selected permission, timer or management-rule repairs
+with `plan`; `apply` requires root, TTYs and exact `APPLY OS-30` consent. It never
+installs pending upgrades, disables SSH authentication or automatically enables UFW.
+The existing `hardening.sh` remains an audit-only entry point. See
+[hardening guidance](knowledge/hardening.md) for preconditions, backup/recovery,
+coverage limits and isolated tests; `VERIFY.md` records actual verification.
+
+Completed schema-2 repair runs can be reverted with
+`sudo python3 linux-lab/scripts/harden_check.py rollback <run-id>` inside the
+authorized guest. It previews the changes and requires exact
+`ROLLBACK OS-30 <run-id>` consent. Modified targets and legacy/incomplete backups
+are refused; UFW deletion requires unique run-rule and exact state evidence.
+See the [rollback safety and recovery instructions](knowledge/hardening.md#explicit-rollback-of-a-completed-run).
+Rollback has only mock/temporary-file verification, not live UTM verification.
+
+Run focused offline tests with
+`python3 -m unittest discover -s linux-lab/tests -v`; executed results are in
+`VERIFY.md`. Permission changes such as 0644 -> 0600 are an optional stricter
+profile: an existing root-owned 0644 config can already pass audit.
+Share only synthetic fixtures or sanitized summaries, not raw server audit output.
+
+Current focused integration verification: **97 tests passed** using fake system
+commands and temporary files; see `VERIFY.md` for commands and evidence limits.
+
+### Salt okunur audit özeti
+
+![OS-30 salt okunur audit özeti: 3 FAIL, 18 WARN ve 0 değişiklik](docs/images/os-30-audit-summary.png)
+
+Bu görsel, paylaşılan Ubuntu audit sonucunun kişisel bilgileri gizlenmiş sunum
+özetidir; ham terminal çıktısı veya yeniden çalıştırılmış bir test değildir.
+Görselde **3 FAIL, 18 WARN ve 0 değişiklik** raporlanır. Üç FAIL, seçili baseline'a
+uymayan SSH root giriş politikası, açık parola doğrulaması ve pasif UFW durumudur.
+WARN sayısı inceleme gerektiren veya kesin doğrulanamayan kontrolleri belirtir;
+her uyarı kanıtlanmış bir güvenlik açığı anlamına gelmez.
+
+Görseldeki 46 bekleyen güncelleme ve iki günlük paket önbelleği, bu özete ait
+ölçümlerdir; güncel sistem durumu olarak kabul edilmemelidir. Audit paket listesi
+yenilemez, güncelleme kurmaz ve ayar değiştirmez. Root sahipliğindeki 0644 SSH
+yapılandırma izni denetimden geçebilir; 0600 önerisi isteğe bağlı daha sıkı bir
+izin profilidir, mevcut bir FAIL değildir.
+
+Bu görsel önceki audit çalıştırmalarıyla birleştirilmemelidir; sürüm ve çalışma
+bağlamına göre toplamlar değişebilir. Görsel tek başına JSON çıktısının, canlı
+`apply` veya canlı `rollback` işlemlerinin doğrulandığını göstermez. Mock test
+sonuçları ve doğrulama sınırları için [VERIFY.md](../VERIFY.md) dosyasına bakın.

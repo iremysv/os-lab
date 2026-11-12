@@ -6,11 +6,12 @@
 #
 # Usage:
 #   scripts/run-tests.sh            run everything
-#   scripts/run-tests.sh --quick    only the android unit tests
+#   scripts/run-tests.sh --quick    OS-30 mocks and android unit tests only
 #   scripts/run-tests.sh --no-venv  use the current environment, do not create .venv
 #   scripts/run-tests.sh -h|--help  show this help
 #
 # Stages:
+#   0. OS-30 hardening mocks (unittest)      [required]
 #   1. android unit tests (pytest)          [required]
 #   2. android sample analysis pipeline     [smoke, non-fatal]
 #   3. shell script syntax check (bash -n)  [required]
@@ -19,7 +20,7 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 ANDROID_LAB="$ROOT/android-lab/lab"
 
 QUICK=0
@@ -72,6 +73,14 @@ ensure_pytest() {
   fi
   "$PY" -c 'import pytest' >/dev/null 2>&1
 }
+
+# --- OS-30: isolated hardening command mocks -------------------------------
+hdr "OS-30: hardening mock tests"
+if python3 -m unittest discover -s "$ROOT/linux-lab/tests" -v; then
+  ok "OS-30 hardening mock tests"
+else
+  bad "OS-30 hardening mock tests"
+fi
 
 # --- Stage 1: android unit tests -------------------------------------------
 hdr "Stage 1: android unit tests (pytest)"
